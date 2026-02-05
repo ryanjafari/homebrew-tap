@@ -1,7 +1,7 @@
-class McpGateway < Formula
+class DockerMcp < Formula
   desc "Docker MCP Gateway service manager"
   homepage "https://github.com/docker/mcp"
-  version "1.0.1"
+  version "1.0.2"
   license "MIT"
 
   # No source to download - this is a service wrapper for docker mcp gateway
@@ -12,23 +12,23 @@ class McpGateway < Formula
 
   def install
     # Create config directory and placeholder token file
-    (etc/"mcp-gateway").mkpath
-    token_file = etc/"mcp-gateway/token"
+    (etc/"docker-mcp").mkpath
+    token_file = etc/"docker-mcp/token"
     token_file.write "YOUR_TOKEN_HERE\n" unless token_file.exist?
 
     # Create wrapper script that reads token from config
-    (bin/"mcp-gateway").write <<~EOS
+    (bin/"docker-mcp").write <<~EOS
       #!/bin/bash
-      TOKEN_FILE="#{etc}/mcp-gateway/token"
+      TOKEN_FILE="#{etc}/docker-mcp/token"
       if [[ -f "$TOKEN_FILE" ]]; then
         export MCP_GATEWAY_AUTH_TOKEN=$(cat "$TOKEN_FILE" | tr -d '\n')
       fi
       exec /usr/local/bin/docker mcp gateway run --transport streamable-http --port 8080 "$@"
     EOS
-    chmod 0755, bin/"mcp-gateway"
+    chmod 0755, bin/"docker-mcp"
 
     # Create a check script
-    (bin/"mcp-gateway-check").write <<~EOS
+    (bin/"docker-mcp-check").write <<~EOS
       #!/bin/bash
       if ! command -v docker &> /dev/null; then
         echo "Docker is not installed or not in PATH"
@@ -38,29 +38,29 @@ class McpGateway < Formula
         echo "Docker daemon is not running"
         exit 1
       fi
-      echo "Docker MCP Gateway ready"
+      echo "Docker MCP ready"
     EOS
-    chmod 0755, bin/"mcp-gateway-check"
+    chmod 0755, bin/"docker-mcp-check"
   end
 
   def caveats
     <<~EOS
       Set your auth token in:
-        #{etc}/mcp-gateway/token
+        #{etc}/docker-mcp/token
 
       The service runs on http://localhost:8080/mcp
     EOS
   end
 
   service do
-    run [opt_bin/"mcp-gateway"]
+    run [opt_bin/"docker-mcp"]
     environment_variables PATH: "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
     keep_alive true
-    log_path var/"log/mcp-gateway.log"
-    error_log_path var/"log/mcp-gateway.log"
+    log_path var/"log/docker-mcp.log"
+    error_log_path var/"log/docker-mcp.log"
   end
 
   test do
-    system "#{bin}/mcp-gateway-check"
+    system "#{bin}/docker-mcp-check"
   end
 end
