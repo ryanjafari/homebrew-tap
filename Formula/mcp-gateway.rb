@@ -1,7 +1,7 @@
 class McpGateway < Formula
   desc "Docker MCP Gateway service manager"
   homepage "https://github.com/docker/mcp"
-  version "1.0.0"
+  version "1.0.1"
   license "MIT"
 
   # No source to download - this is a service wrapper for docker mcp gateway
@@ -11,7 +11,23 @@ class McpGateway < Formula
   depends_on "docker"
 
   def install
-    # Create a simple script that validates docker is available
+    # Create config directory and placeholder token file
+    (etc/"mcp-gateway").mkpath
+    token_file = etc/"mcp-gateway/token"
+    token_file.write "YOUR_TOKEN_HERE\n" unless token_file.exist?
+
+    # Create wrapper script that reads token from config
+    (bin/"mcp-gateway").write <<~EOS
+      #!/bin/bash
+      TOKEN_FILE="#{etc}/mcp-gateway/token"
+      if [[ -f "$TOKEN_FILE" ]]; then
+        export MCP_GATEWAY_AUTH_TOKEN=$(cat "$TOKEN_FILE" | tr -d '\n')
+      fi
+      exec /usr/local/bin/docker mcp gateway run --transport streamable-http --port 8080 "$@"
+    EOS
+    chmod 0755, bin/"mcp-gateway"
+
+    # Create a check script
     (bin/"mcp-gateway-check").write <<~EOS
       #!/bin/bash
       if ! command -v docker &> /dev/null; then
@@ -29,7 +45,7 @@ class McpGateway < Formula
 
   def caveats
     <<~EOS
-      To set your auth token, edit the plist or set MCP_GATEWAY_AUTH_TOKEN:
+      Set your auth token in:
         #{etc}/mcp-gateway/token
 
       The service runs on http://localhost:8080/mcp
@@ -37,9 +53,8 @@ class McpGateway < Formula
   end
 
   service do
-    run ["/usr/local/bin/docker", "mcp", "gateway", "run", "--transport", "streamable-http", "--port", "8080"]
-    environment_variables PATH: "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin",
-                          MCP_GATEWAY_AUTH_TOKEN: "bwzg6aefl5xmx7sexb2jn3aee6ldbpy4q6a78xo2inltt8cafo"
+    run [opt_bin/"mcp-gateway"]
+    environment_variables PATH: "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
     keep_alive true
     log_path var/"log/mcp-gateway.log"
     error_log_path var/"log/mcp-gateway.log"
