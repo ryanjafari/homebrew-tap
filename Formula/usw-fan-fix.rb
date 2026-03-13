@@ -1,7 +1,7 @@
 class UswFanFix < Formula
   desc "USW-Enterprise-8-PoE fan controller fix service"
   homepage "https://github.com/ryanjafari/homebrew-tap"
-  version "1.1.0"
+  version "1.2.0"
   license "MIT"
 
   # No source to download - this is a service wrapper
@@ -41,7 +41,7 @@ class UswFanFix < Formula
         # Ensure fan-fix.sh exists on switch
         if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$SWITCH_IP" 'test -f /etc/persistent/fan-fix.sh' 2>/dev/null; then
           log "Restoring /etc/persistent/fan-fix.sh"
-          ssh -o BatchMode=yes "$SWITCH_IP" 'printf "#!/bin/sh\\ni2cset -y 7 0x2e 0x44 0x80\\ni2cset -y 7 0x2e 0x46 0x80\\n" > /etc/persistent/fan-fix.sh; chmod +x /etc/persistent/fan-fix.sh'
+          ssh -o BatchMode=yes "$SWITCH_IP" 'printf "#!/bin/sh\\ni2cset -y 7 0x2e 0x44 0x01\\ni2cset -y 7 0x2e 0x46 0x01\\n" > /etc/persistent/fan-fix.sh; chmod +x /etc/persistent/fan-fix.sh'
         fi
 
         # Ensure rc.ed41 boot hook exists
