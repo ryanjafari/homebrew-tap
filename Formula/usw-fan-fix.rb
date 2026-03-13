@@ -1,7 +1,7 @@
 class UswFanFix < Formula
   desc "USW-Enterprise-8-PoE fan controller fix service"
   homepage "https://github.com/ryanjafari/homebrew-tap"
-  version "1.0.0"
+  version "1.1.0"
   license "MIT"
 
   # No source to download - this is a service wrapper
@@ -47,13 +47,7 @@ class UswFanFix < Formula
         # Ensure rc.ed41 boot hook exists
         if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$SWITCH_IP" 'test -f /etc/rc.d/rc.ed41' 2>/dev/null; then
           log "Restoring /etc/rc.d/rc.ed41 boot hook"
-          ssh -o BatchMode=yes "$SWITCH_IP" 'printf "#!/bin/sh\\n/etc/persistent/fan-fix.sh\\nmkdir -p /etc/crontabs\\necho \\"* * * * * /etc/persistent/fan-fix.sh\\" > /etc/crontabs/root\\n" > /etc/rc.d/rc.ed41; chmod +x /etc/rc.d/rc.ed41'
-        fi
-
-        # Ensure crontab is active
-        if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$SWITCH_IP" 'test -f /etc/crontabs/root' 2>/dev/null; then
-          log "Restoring crontab"
-          ssh -o BatchMode=yes "$SWITCH_IP" 'mkdir -p /etc/crontabs; echo "* * * * * /etc/persistent/fan-fix.sh" > /etc/crontabs/root'
+          ssh -o BatchMode=yes "$SWITCH_IP" 'printf "#!/bin/sh\\n/etc/persistent/fan-fix.sh\\n" > /etc/rc.d/rc.ed41; chmod +x /etc/rc.d/rc.ed41'
         fi
 
         # Apply fan fix now
