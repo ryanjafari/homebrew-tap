@@ -1,7 +1,7 @@
 class UswFanFix < Formula
   desc "USW-Enterprise-8-PoE fan controller fix service"
   homepage "https://github.com/ryanjafari/homebrew-tap"
-  version "1.4.0"
+  version "1.4.1"
   license "MIT"
 
   # No source to download - this is a service wrapper
@@ -15,8 +15,8 @@ class UswFanFix < Formula
     config_file = etc/"usw-fan-fix/config"
     config_file.write "SWITCH_IP=192.168.1.24\nFAN_PERCENT=50\n" unless config_file.exist?
 
-    # Fan fix script to deploy to switch
-    (etc/"usw-fan-fix/fan-fix.sh").write <<~EOS
+    # Fan fix script to deploy to switch (in share/ so it updates on reinstall)
+    (share/"usw-fan-fix/fan-fix.sh").write <<~EOS
       #!/bin/sh
       # ADT7475 Fan Controller
       # Usage: fan-fix.sh [0-100]
@@ -36,7 +36,7 @@ class UswFanFix < Formula
       # Chip: ADT7475 at i2c bus 7, address 0x2e
 
       CONFIG="#{etc}/usw-fan-fix/config"
-      FAN_SCRIPT="#{etc}/usw-fan-fix/fan-fix.sh"
+      FAN_SCRIPT="#{share}/usw-fan-fix/fan-fix.sh"
       LOG="#{var}/log/usw-fan-fix.log"
 
       source "$CONFIG"
