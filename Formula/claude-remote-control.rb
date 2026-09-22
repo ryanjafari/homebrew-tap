@@ -24,17 +24,13 @@ class ClaudeRemoteControl < Formula
 
     (bin/"claude-remote-control").write <<~EOS
       #!/bin/bash
-      # Runs `claude remote-control` headlessly. Resumes the previous server's
-      # sessions when there are any (--continue), otherwise starts fresh.
+      # Runs `claude remote-control` headlessly as a multi-session server so this
+      # Mac appears in the Claude mobile app's device list and can spawn sessions.
       export PATH="#{HOMEBREW_PREFIX}/bin:/usr/local/bin:/usr/bin:/bin"
       export HOME="${HOME:-/Users/$(id -un)}"
       source "#{etc}/claude-remote-control/config"
       CLAUDE="$(command -v claude)" || { echo "claude CLI not found on PATH" >&2; exit 1; }
       cd "$WORKDIR" || { echo "cannot cd to $WORKDIR" >&2; exit 1; }
-      if "$CLAUDE" remote-control --continue --name "$NAME" $EXTRA_ARGS </dev/null; then
-        exit 0
-      fi
-      echo "[$(date)] --continue found nothing to resume, starting a new server" >&2
       exec "$CLAUDE" remote-control --name "$NAME" $EXTRA_ARGS </dev/null
     EOS
     chmod 0755, bin/"claude-remote-control"
