@@ -1,7 +1,7 @@
 class ClaudeRemoteControl < Formula
   desc "Always-on Claude Code Remote Control server (shows this Mac in the Claude mobile app)"
   homepage "https://code.claude.com/docs/en/remote-control"
-  version "1.1.0"
+  version "1.2.0"
   license "MIT"
 
   # No source to download - this is a service wrapper around the claude CLI
@@ -94,7 +94,10 @@ class ClaudeRemoteControl < Formula
         rm -f "$LOG.tmp"
       fi
 
-      exec "$CLAUDE" remote-control --name "$NAME" $EXTRA_ARGS </dev/null \\
+      # caffeinate -i blocks idle sleep. It runs here rather than in the service
+      # definition so launchd's program is this script, and System Settings >
+      # Login Items lists the job as "claude-remote-control", not "caffeinate".
+      exec /usr/bin/caffeinate -i "$CLAUDE" remote-control --name "$NAME" $EXTRA_ARGS </dev/null \\
         > >("#{libexec}/logfilter") 2>&1
     EOS
     chmod 0755, bin/"claude-remote-control"
@@ -120,7 +123,7 @@ class ClaudeRemoteControl < Formula
   end
 
   service do
-    run ["/usr/bin/caffeinate", "-i", opt_bin/"claude-remote-control"]
+    run opt_bin/"claude-remote-control"
     keep_alive true
     environment_variables PATH: std_service_path_env, HOME: Dir.home
     log_path var/"log/claude-remote-control.log"
