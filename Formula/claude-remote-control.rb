@@ -1,7 +1,7 @@
 class ClaudeRemoteControl < Formula
   desc "Always-on Claude Code Remote Control server (shows this Mac in the Claude mobile app)"
   homepage "https://code.claude.com/docs/en/remote-control"
-  version "1.2.0"
+  version "1.3.0"
   license "MIT"
 
   # No source to download - this is a service wrapper around the claude CLI
@@ -20,6 +20,9 @@ class ClaudeRemoteControl < Formula
       NAME="M3 Max"
       # Extra flags for `claude remote-control`, e.g. --permission-mode acceptEdits
       EXTRA_ARGS=""
+      # After a CLI upgrade the server restarts itself. Seconds it waits for
+      # sessions that are mid-turn to finish first (0 = restart at once).
+      RESTART_WAIT=600
     EOS
 
     # `claude remote-control` has no plain-output mode: it redraws its status
@@ -94,6 +97,42 @@ class ClaudeRemoteControl < Formula
         rm -f "$LOG.tmp"
       fi
 
+      # The server pins the CLI binary it started with and spawns every session
+      # from that path. A cask upgrade deletes it, so new sessions fail with
+      # "spawn error: ENOENT" until the server restarts. This watcher notices
+      # the upgrade and stops the server; launchd's KeepAlive starts it again
+      # on the new CLI. Stopping cuts off sessions that are mid-turn, so it
+      # waits for them to go idle first, up to RESTART_WAIT seconds. The exec
+      # below keeps this shell's PID, so $$ is the server.
+      BIN="$(realpath "$CLAUDE")"
+      note() { echo "$(date '+%Y-%m-%d %H:%M:%S') [watcher] $*" >> "$LOG"; }
+      busy() {
+        # Each session is a child of the server and records its state in
+        # ~/.claude/sessions/<pid>.json.
+        local pid
+        for pid in $(pgrep -P $$); do
+          grep -Eq '"status" *: *"busy"' "$HOME/.claude/sessions/$pid.json" 2>/dev/null && return 0
+        done
+        return 1
+      }
+      note "starting on $BIN"
+      (
+        while sleep 60; do
+          kill -0 $$ 2>/dev/null || exit
+          new="$(realpath "$(command -v claude)" 2>/dev/null)"
+          { [ -x "$new" ] && [ "$new" != "$BIN" ]; } || continue
+          note "CLI changed to $new"
+          waited=0
+          while busy && [ "$waited" -lt "${RESTART_WAIT:-600}" ]; do
+            sleep 15
+            waited=$((waited + 15))
+          done
+          note "restarting on the new CLI (waited ${waited}s for busy sessions)"
+          kill -TERM $$
+          exit
+        done
+      ) </dev/null >/dev/null 2>&1 &
+
       # caffeinate -i blocks idle sleep. It runs here rather than in the service
       # definition so launchd's program is this script, and System Settings >
       # Login Items lists the job as "claude-remote-control", not "caffeinate".
@@ -116,6 +155,9 @@ class ClaudeRemoteControl < Formula
 
       Logs (status redraws filtered out, events only):
         #{var}/log/claude-remote-control.log
+
+      The server restarts itself after a Claude CLI upgrade, once running
+      sessions are idle or RESTART_WAIT seconds (default 600) have passed.
 
       Start with:
         brew services start claude-remote-control
