@@ -1,12 +1,11 @@
 class ResyncBrewCasks < Formula
   desc "Keep Homebrew's versions current for self-updating apps without quitting them"
   homepage "https://github.com/ryanjafari/homebrew-tap"
-  version "1.0.0"
-  license "MIT"
-
   # No source to download - the script is written out below
   url "file:///dev/null"
+  version "1.0.1"
   sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  license "MIT"
 
   depends_on :macos
 
@@ -219,6 +218,8 @@ class ResyncBrewCasks < Formula
               sys.exit(1)
     EOS
 
+    # No backslashes in this heredoc: Ruby would read them as escapes. The error text
+    # goes to AppleScript as an argument, so it needs no quoting.
     (bin/"resync-brew-casks").write <<~EOS
       #!/bin/bash
       # One resync pass: runs the script, timestamps its output, and posts a macOS
@@ -227,14 +228,14 @@ class ResyncBrewCasks < Formula
       export HOME="${HOME:-/Users/$(id -un)}"
       OUT="$(/usr/bin/python3 "#{libexec}/resync.py" "$@" 2>&1)"
       RC=$?
-      printf '%s\n' "$OUT" | while IFS= read -r line; do
-        printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$line"
-      done
-      LAST="$(printf '%s\n' "$OUT" | tail -n 1)"
+      while IFS= read -r line; do
+        echo "$(date '+%Y-%m-%d %H:%M:%S') $line"
+      done <<<"$OUT"
+      LAST="$(tail -n 1 <<<"$OUT")"
       case "$LAST" in
         ERROR:*)
-          MSG="$(printf '%s' "${LAST#ERROR: }" | cut -c1-200 | tr '"\\' "' ")"
-          /usr/bin/osascript -e "display notification \"$MSG\" with title \"Homebrew cask resync failed\"" || true
+          WHY="$(cut -c1-200 <<<"${LAST#ERROR: }")"
+          /usr/bin/osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title "Homebrew cask resync failed"' -e 'end run' "$WHY" || true
           ;;
       esac
       exit $RC
