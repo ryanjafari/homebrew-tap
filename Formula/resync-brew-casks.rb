@@ -3,7 +3,7 @@ class ResyncBrewCasks < Formula
   homepage "https://github.com/ryanjafari/homebrew-tap"
   # No source to download - the script is written out below
   url "file:///dev/null"
-  version "1.0.1"
+  version "1.0.2"
   sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   license "MIT"
 
@@ -55,6 +55,12 @@ class ResyncBrewCasks < Formula
       KEEP_BACKUPS = 2   # per cask, newest first
       # what a cask may install and still be adopted whole
       ADOPTABLE = {"app", "target", "uninstall", "zap"}
+      # After adopting, Homebrew resets permissions across the whole app (chmod -R, chgrp -hR in
+      # cask/artifact/app.rb). An app that watches its own bundle can react badly to that burst of
+      # file events: 1Password aborted on 2026-10-16 (op_fs_watch, SIGABRT) and relaunched locked,
+      # while Claude and Taphouse were fine. So only these are adopted while open; any other app
+      # waits until it is closed.
+      SAFE_WHILE_OPEN = {"claude", "taphouse"}
       # Never touched, with the reason shown in the report.
       SKIP = {
           "docker-desktop": "quitting Docker stops running containers",
@@ -119,6 +125,12 @@ class ResyncBrewCasks < Formula
               if main not in (short, build) and wanted != short:
                   return False
           return True
+
+
+      def open_apps(cask):
+          """The cask's apps that are running now (-a: pgrep skips its own ancestors otherwise)."""
+          return [p for p in app_paths(cask)
+                  if run(["/usr/bin/pgrep", "-a", "-f", p + "/Contents/MacOS/"], timeout=20).returncode == 0]
 
 
       def adoptable(cask):
@@ -186,6 +198,8 @@ class ResyncBrewCasks < Formula
                       notes.append(f"left alone: {label} (can't read the installed version)")
                   elif not match:
                       notes.append(f"not drift: {label} (the app hasn't updated itself yet)")
+                  elif token not in SAFE_WHILE_OPEN and open_apps(cask):
+                      notes.append(f"waiting: {label} (the app is open; it is adopted once it is closed)")
                   else:
                       todo.append((token, label))
 
