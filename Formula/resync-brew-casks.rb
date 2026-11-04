@@ -3,7 +3,7 @@ class ResyncBrewCasks < Formula
   homepage "https://github.com/ryanjafari/homebrew-tap"
   # No source to download - the script is written out below
   url "file:///dev/null"
-  version "1.0.2"
+  version "1.0.3"
   sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   license "MIT"
 
@@ -51,6 +51,7 @@ class ResyncBrewCasks < Formula
 
       BREW = "/opt/homebrew/bin/brew"
       CASKROOM = "/opt/homebrew/Caskroom"
+      PORTABLE_RUBY = "/opt/homebrew/Library/Homebrew/vendor/portable-ruby/current"
       BACKUPS = os.path.expanduser("~/.claude/backups/brew-adopt")
       KEEP_BACKUPS = 2   # per cask, newest first
       # what a cask may install and still be adopted whole
@@ -167,6 +168,13 @@ class ResyncBrewCasks < Formula
           if os.path.exists(room):
               shutil.rmtree(room, ignore_errors=True)
           shutil.move(backup, room)
+          if "a terminal is required to read the password" in r.stdout + r.stderr:
+              # Homebrew's permission reset (chgrp) was refused and it fell back to sudo, which
+              # can't prompt here. That means macOS App Management blocked Homebrew's Ruby; the
+              # grant is tied to the Ruby's path, so it is lost each time Homebrew updates it.
+              ruby = os.path.basename(os.path.realpath(PORTABLE_RUBY))
+              return False, (f"macOS blocked Homebrew's ruby {ruby}; turn it on in System Settings "
+                             "› Privacy & Security › App Management (old record restored)")
           return False, f"adopt didn't check out, old record restored ({tail})"
 
 
@@ -237,7 +245,8 @@ class ResyncBrewCasks < Formula
     (bin/"resync-brew-casks").write <<~EOS
       #!/bin/bash
       # One resync pass: runs the script, timestamps its output, and posts a macOS
-      # notification when the result (the script's last line) is an ERROR.
+      # notification when the result (the script's last line) is an ERROR. The same error
+      # notifies once, not on every run; a clean run resets that, so a recurrence notifies again.
       export PATH="#{HOMEBREW_PREFIX}/bin:/usr/bin:/bin:/usr/sbin:/sbin"
       export HOME="${HOME:-/Users/$(id -un)}"
       OUT="$(/usr/bin/python3 "#{libexec}/resync.py" "$@" 2>&1)"
@@ -246,10 +255,19 @@ class ResyncBrewCasks < Formula
         echo "$(date '+%Y-%m-%d %H:%M:%S') $line"
       done <<<"$OUT"
       LAST="$(tail -n 1 <<<"$OUT")"
+      STATE="#{var}/resync-brew-casks/last-error"
       case "$LAST" in
         ERROR:*)
           WHY="$(cut -c1-200 <<<"${LAST#ERROR: }")"
-          /usr/bin/osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title "Homebrew cask resync failed"' -e 'end run' "$WHY" || true
+          if [ "$WHY" = "$(cat "$STATE" 2>/dev/null)" ]; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') (same error as the last run, not notified again)"
+          else
+            /usr/bin/osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title "Homebrew cask resync failed"' -e 'end run' "$WHY" || true
+            mkdir -p "$(dirname "$STATE")" && echo "$WHY" >"$STATE"
+          fi
+          ;;
+        *)
+          rm -f "$STATE"
           ;;
       esac
       exit $RC
@@ -268,6 +286,9 @@ class ResyncBrewCasks < Formula
 
       Log:
         #{var}/log/resync-brew-casks.log
+
+      An error posts a macOS notification once; the same error on later runs
+      is only logged, until a clean run resets it.
 
       Pair it with Taphouse's "Include self-updating casks" switched off, so
       Taphouse's auto-upgrade never reinstalls (and quits) those apps.
