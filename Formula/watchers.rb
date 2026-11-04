@@ -3,7 +3,7 @@ class Watchers < Formula
   homepage "https://github.com/ryanjafari/homebrew-tap"
   # No source to download - the script is written out below
   url "file:///dev/null"
-  version "1.2.1"
+  version "1.2.2"
   sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   license "MIT"
 
@@ -135,7 +135,7 @@ class Watchers < Formula
           ALERT:*)
             save "$name" '.last_alert = $l | .last_alert_at = ($t|tonumber) | .error_sent = null' --arg l "$line" --arg t "$now"
             # urgent is the one ntfy priority iOS shows as Time Sensitive, so it gets through a Focus
-        notify "$name" "$title" "$(fill "$(conf "$f" alert)" "$detail")" urgent "$(conf "$f" click)"
+            notify "$name" "$title" "$(fill "$(conf "$f" alert)" "$detail")" urgent "$(conf "$f" click)"
             ;;
           ERROR:*)
             # sent once; the same error again stays in the log until the watcher recovers
