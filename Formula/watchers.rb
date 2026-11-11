@@ -3,7 +3,7 @@ class Watchers < Formula
   homepage "https://github.com/ryanjafari/homebrew-tap"
   # No source to download - the script is written out below
   url "file:///dev/null"
-  version "1.2.2"
+  version "1.3.0"
   sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   license "MIT"
 
@@ -34,13 +34,13 @@ class Watchers < Formula
       # and a push that fails is retried on the next tick (macOS banner as a fallback).
       #
       # State: ~/.local/state/watchers/NAME.json. The ntfy topic is read from
-      # ~/.config/ntfy/topic and never printed.
+      # ~/.config/watchers/topic (its own topic since 1.3.0) and never printed.
 
       set -u
       export PATH="/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
       CONF_DIR="${WATCHERS_CONFIG:-$HOME/.config/watchers}"
       STATE_DIR="${WATCHERS_STATE:-$HOME/.local/state/watchers}"
-      TOPIC_FILE="${WATCHERS_TOPIC_FILE:-$HOME/.config/ntfy/topic}"
+      TOPIC_FILE="${WATCHERS_TOPIC_FILE:-$HOME/.config/watchers/topic}"
       NTFY="${WATCHERS_NTFY:-https://ntfy.sh}"
       mkdir -p "$STATE_DIR"
 
@@ -201,7 +201,7 @@ class Watchers < Formula
       The check prints one line starting OK:, ALERT:, ERROR: or QUIET-ERROR:.
       ALERT pushes every time it is printed, as urgent so it gets through a Focus;
       ERROR pushes once until it recovers, at normal priority.
-      Put a random ntfy topic in ~/.config/ntfy/topic and subscribe to it in the
+      Put a random ntfy topic in ~/.config/watchers/topic and subscribe to it in the
       ntfy app.
 
         watchers status             last result of each watcher
