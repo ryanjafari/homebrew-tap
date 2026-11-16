@@ -3,7 +3,7 @@ class ResyncBrewCasks < Formula
   homepage "https://github.com/ryanjafari/homebrew-tap"
   # No source to download - the script is written out below
   url "file:///dev/null"
-  version "1.0.3"
+  version "1.0.4"
   sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   license "MIT"
 
@@ -59,9 +59,10 @@ class ResyncBrewCasks < Formula
       # After adopting, Homebrew resets permissions across the whole app (chmod -R, chgrp -hR in
       # cask/artifact/app.rb). An app that watches its own bundle can react badly to that burst of
       # file events: 1Password aborted on 2026-10-16 (op_fs_watch, SIGABRT) and relaunched locked,
-      # while Claude and Taphouse were fine. So only these are adopted while open; any other app
-      # waits until it is closed.
-      SAFE_WHILE_OPEN = {"claude", "taphouse"}
+      # while Claude and Taphouse were fine, and so were Signal and Chrome on 2026-11-16 (same
+      # process, no crash, Gatekeeper still accepts). So only these are adopted while open; any
+      # other app waits until it is closed.
+      SAFE_WHILE_OPEN = {"claude", "taphouse", "signal", "google-chrome"}
       # Never touched, with the reason shown in the report.
       SKIP = {
           "docker-desktop": "quitting Docker stops running containers",
